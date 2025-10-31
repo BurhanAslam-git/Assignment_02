@@ -1,0 +1,62 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "docs/**"
+      - "README.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install
+        run: |
+          if [ -f package.json ]; then npm ci; else echo "No package.json"; fi
+
+      - name: Build docs
+        run: |
+          if [ -f package.json ] && npm run | grep -q "docs:build"; then
+            npm run docs:build
+          elif [ -d docs ]; then
+            mkdir -p site && cp -r docs/* site/
+          else
+            mkdir -p site && echo "# Docs" > site/index.html
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+

@@ -1,0 +1,75 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    outputs:
+      build_artifact: dist
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: |
+          if npm run | grep -q "test"; then
+            npm test -- --ci
+          else
+            echo "No tests; continuing"
+          fi
+
+      - name: Build
+        run: |
+          if npm run | grep -q "build"; then
+            npm run build
+          else
+            echo "No build; continuing"
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: |
+            dist
+            build
+            .next
+          if-no-files-found: warn
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: ./deployable
+
+      - name: Deploy (placeholder)
+        id: deploy
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+        run: |
+          echo "Implement provider-specific deployment here."
+          echo "For Heroku: use 'heroku deploy:jar' or container push with secrets."
+          echo "For AWS/Azure: use corresponding official actions and credentials."
+          echo "url=https://example-deployment-url" >> $GITHUB_OUTPUT
+

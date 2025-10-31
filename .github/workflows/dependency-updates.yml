@@ -1,0 +1,42 @@
+name: Dependency Updates CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main ]
+
+jobs:
+  test-deps-pr:
+    if: github.actor == 'dependabot[bot]' || startsWith(github.head_ref, 'dependabot/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: |
+          if npm run | grep -q "test"; then
+            npm test -- --ci
+          else
+            echo "No tests; continuing"
+          fi
+
+      - name: Auto-merge minor and patch if tests pass
+        if: success()
+        uses: fastify/github-action-merge-dependabot@v3
+        with:
+          target: minor
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
