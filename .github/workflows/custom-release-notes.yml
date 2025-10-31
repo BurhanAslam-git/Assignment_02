@@ -3,8 +3,8 @@ name: Release Notes
 on:
   push:
     tags:
-      - 'v*.*.*'
-  workflow_dispatch:
+      - 'v*.*.*'  # Triggers when version tags like v1.0.0, v1.1.0 are pushed
+  workflow_dispatch:  # Allows manual run too
 
 jobs:
   generate-notes:
@@ -12,19 +12,27 @@ jobs:
     permissions:
       contents: write
       releases: write
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Generate release notes
         id: notes
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const tag = process.env.GITHUB_REF.replace('refs/tags/','');
-            const { data: commits } = await github.rest.repos.listCommits({ owner: context.repo.owner, repo: context.repo.repo, per_page: 100 });
+            const tag = process.env.GITHUB_REF.replace('refs/tags/', '');
+            const { data: commits } = await github.rest.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 20
+            });
+
             const lines = commits.map(c => `- ${c.commit.message.split('\n')[0]} (${c.sha.substring(0,7)})`);
             const body = `## Changes in ${tag}\n\n` + lines.join('\n');
+
             core.setOutput('body', body);
             core.setOutput('tag', tag);
 
@@ -37,3 +45,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Confirm release created
+        run: echo "✅ Release successfully created for ${{ steps.notes.outputs.tag }}"
