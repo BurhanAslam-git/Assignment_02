@@ -3,15 +3,14 @@ name: Release Notes
 on:
   push:
     tags:
-      - 'v*.*.*'  # Triggers when version tags like v1.0.0, v1.1.0 are pushed
-  workflow_dispatch:  # Allows manual run too
+      - 'v*.*.*'  # Triggers when version tags like v1.0.0 are pushed
+  workflow_dispatch:  # Allows manual run
 
 jobs:
   generate-notes:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      releases: write
+      contents: write  # Needed to create the release
 
     steps:
       - name: Checkout repository
@@ -29,10 +28,8 @@ jobs:
               repo: context.repo.repo,
               per_page: 20
             });
-
             const lines = commits.map(c => `- ${c.commit.message.split('\n')[0]} (${c.sha.substring(0,7)})`);
             const body = `## Changes in ${tag}\n\n` + lines.join('\n');
-
             core.setOutput('body', body);
             core.setOutput('tag', tag);
 
